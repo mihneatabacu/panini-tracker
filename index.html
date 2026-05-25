@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#080810">
+<title>Panini WC 2026 Tracker</title>
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Panini 2026&quot;,&quot;short_name&quot;:&quot;Panini&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23080810&quot;,&quot;theme_color&quot;:&quot;%23080810&quot;}">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080810; --card: #10101c; --border: #1a1a28;
+  --gold: #D4AF37; --teal: #4ECDC4; --orange: #FF6B35;
+  --green: #22c55e; --red: #ef4444;
+  --text: #fff; --muted: #888; --dim: #444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; max-width: 480px; margin: 0 auto; min-height: 100vh; overflow-x: hidden; }
+h1,h2,h3 { font-family: 'Oswald', sans-serif; letter-spacing: 1px; }
+button { font-family: 'DM Sans', sans-serif; cursor: pointer; border: none; }
+button:active { transform: scale(.97); }
+input { font-family: 'DM Sans', sans-serif; outline: none; }
+input::placeholder { color: var(--dim); }
+::-webkit-scrollbar { width: 0; }
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.15); } }
+@keyframes spin { 0% { transform:rotate(0); } 100% { transform:rotate(360deg); } }
+.fadeUp { animation: fadeUp .35s ease; }
+
+.toast { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--teal); color:#000; padding:10px 22px; border-radius:20px; font-weight:700; font-size:13px; z-index:999; box-shadow:0 4px 20px #4ECDC444; animation:fadeUp .25s ease; max-width:90%; text-align:center; pointer-events:none; }
+
+/* HEADER */
+.hdr { display:flex; justify-content:space-between; align-items:center; padding:14px 16px 6px; }
+.hdr-title { font-size:20px; }
+.hdr-pct { font-family:'Oswald',sans-serif; font-size:26px; color:var(--gold); font-weight:700; line-height:1; }
+.hdr-meta { font-size:11px; }
+.prog { height:2px; background:#ffffff06; margin:0 16px 4px; }
+.prog-fill { height:100%; background:linear-gradient(90deg,var(--gold),var(--teal)); transition:width .4s; border-radius:1px; }
+
+/* QUICK ADD */
+.add-row { display:flex; gap:8px; padding:8px 16px; }
+.add-in { flex:1; background:var(--card); border:1.5px solid var(--border); border-radius:10px; color:#fff; padding:10px 14px; font-size:14px; }
+.add-btn { background:var(--gold); color:#000; border-radius:10px; padding:10px 18px; font-weight:700; font-size:14px; white-space:nowrap; }
+
+/* JUST ADDED */
+.just-added { display:flex; flex-wrap:wrap; gap:4px; padding:2px 16px 6px; align-items:center; }
+.added-chip { font-size:11px; font-weight:700; font-family:'Oswald',sans-serif; padding:2px 6px; border-radius:5px; border:1px solid; }
+
+/* NAV */
+.nav { display:flex; background:#0a0a14; border-top:1px solid #ffffff06; border-bottom:1px solid #ffffff06; position:sticky; top:0; z-index:50; }
+.nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 4px; background:none; color:var(--dim); font-size:10px; border-bottom:2px solid transparent; position:relative; }
+.nav-btn.on { color:var(--gold); border-bottom-color:var(--gold); }
+.nav-badge { position:absolute; top:2px; right:calc(50% - 20px); background:var(--red); color:#fff; font-size:8px; font-weight:700; padding:1px 4px; border-radius:8px; min-width:14px; text-align:center; }
+.nav-ico { font-size:17px; }
+
+/* CONTENT */
+.body { padding:12px 16px; padding-bottom:32px; }
+.sec { font-size:18px; margin:0 0 4px; }
+.card { background:var(--card); border-radius:12px; padding:16px; border:1px solid var(--border); margin-bottom:12px; }
+.action-btn { width:100%; background:#D4AF3712; border:1px solid #D4AF3728; color:var(--gold); padding:11px; border-radius:10px; font-size:13px; font-weight:600; margin-top:8px; }
+
+/* EMPTY STATES */
+.empty-card { background:var(--card); border-radius:14px; padding:28px 20px; border:1px solid var(--border); text-align:center; margin-bottom:12px; }
+.empty-title { font-family:'Oswald',sans-serif; font-size:17px; margin:0 0 6px; letter-spacing:1px; }
+.empty-desc { color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.5; }
+
+/* TRADES */
+.trade-card { background:var(--card); border-radius:14px; padding:14px; margin-bottom:10px; border:1px solid var(--border); }
+.trade-friend { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.avatar { width:36px; height:36px; border-radius:50%; background:#1e1e32; display:flex; align-items:center; justify-content:center; color:var(--muted); font-family:'Oswald',sans-serif; font-size:16px; font-weight:700; flex-shrink:0; }
+.trade-name { font-family:'Oswald',sans-serif; font-size:16px; letter-spacing:1px; }
+.trade-section { margin-bottom:10px; }
+.trade-label { font-size:12px; font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.trade-label-green { color:var(--green); }
+.trade-label-orange { color:var(--orange); }
+.trade-dot { width:6px; height:6px; border-radius:50%; display:inline-block; flex-shrink:0; }
+.chip-wrap { display:flex; flex-wrap:wrap; gap:4px; }
+.chip { font-size:11px; font-weight:600; padding:3px 7px; border-radius:6px; border:1px solid; }
+.chip-green { background:#22c55e12; border-color:#22c55e33; color:var(--green); }
+.chip-orange { background:#f9731612; border-color:#f9731633; color:var(--orange); }
+.trade-footer { margin-top:10px; padding-top:8px; border-top:1px solid #ffffff0a; color:var(--gold); font-size:13px; font-weight:600; }
+
+/* ALBUM GRID */
+.team-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.team-card { background:var(--card); border:none; border-left:3px solid; border-radius:10px; padding:8px 10px; text-align:left; width:100%; }
+.team-bar { height:2px; background:#ffffff08; border-radius:1px; margin-top:4px; }
+.team-bar-fill { height:100%; border-radius:1px; transition:width .3s; }
+.team-count { font-size:10px; color:#555; margin-top:3px; }
+.team-dupe { color:var(--teal); font-size:9px; background:#4ECDC418; padding:1px 5px; border-radius:4px; font-weight:700; }
+.team-done { color:var(--teal); font-size:13px; font-weight:700; }
+
+/* STICKER GRID */
+.filter-row { display:flex; gap:6px; margin-bottom:12px; }
+.f-btn { background:var(--card); border:1px solid var(--border); color:#666; padding:5px 12px; border-radius:8px; font-size:12px; }
+.f-btn.on { background:#D4AF3715; border-color:#D4AF3740; color:var(--gold); }
+.sticker-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.sticker { border-radius:10px; padding:8px 4px; text-align:center; border:1.5px solid; transition:all .15s; position:relative; }
+.sticker-num { font-family:'Oswald',sans-serif; font-size:17px; font-weight:700; }
+.sticker-dupe { color:var(--teal); font-size:10px; font-weight:700; }
+.sticker-actions { display:flex; gap:4px; justify-content:center; margin-top:4px; }
+.s-btn { width:28px; height:28px; border-radius:8px; background:#ffffff08; border:none; color:#888; font-size:15px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+.friend-dot { position:absolute; top:2px; right:4px; font-size:8px; }
+
+/* ROOM */
+.room-code { font-family:'Oswald',sans-serif; font-size:30px; color:var(--teal); letter-spacing:3px; }
+.member-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #ffffff06; }
+.member-row:last-child { border-bottom:none; }
+.room-in { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:#fff; padding:10px 12px; font-size:14px; letter-spacing:2px; text-transform:uppercase; }
+.sync-btn { background:#ffffff08; border:1px solid #ffffff12; color:var(--muted); border-radius:8px; padding:5px 12px; font-size:13px; }
+
+/* ONBOARDING */
+.onboard { text-align:center; padding:80px 28px 40px; }
+.logo { font-family:'Oswald',sans-serif; font-size:48px; letter-spacing:3px; line-height:1; margin:0; }
+.logo span { display:block; color:var(--gold); font-size:36px; }
+.on-input { width:100%; background:var(--card); border:2px solid var(--border); border-radius:12px; color:#fff; padding:14px 18px; font-size:16px; margin-bottom:12px; }
+.big-btn { width:100%; background:var(--gold); color:#000; border-radius:12px; padding:14px; font-size:15px; font-weight:700; margin-bottom:10px; }
+.ghost-btn { background:none; color:#666; font-size:13px; padding:10px; }
+
+/* STATS */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.stat-box { background:#0c0c16; border-radius:10px; padding:14px 10px; text-align:center; }
+.stat-num { font-family:'Oswald',sans-serif; font-size:28px; }
+
+/* MISSING */
+.missing-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.missing-chip { background:var(--card); border-radius:6px; padding:7px 2px; text-align:center; color:var(--orange); font-size:12px; font-weight:700; font-family:'Oswald',sans-serif; border-bottom:2px solid; }
+
+/* LOADING */
+.loading { height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--bg); }
+.loading-ball { font-size:56px; animation:pulse 1.2s ease infinite; }
+
+/* CONNECTION STATUS */
+.conn-status { font-size:10px; padding:4px 16px; text-align:center; }
+.conn-online { color:var(--green); }
+.conn-offline { color:var(--red); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- FIREBASE SDK (v10 compat - from CDN)       -->
+<!-- ═══════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════════
+// 🔥 FIREBASE CONFIG — REPLACE WITH YOUR OWN
+// ══════════════════════════════════════════════
+// 1. Go to https://console.firebase.google.com
+// 2. Create a free project (disable Google Analytics if you want)
+// 3. Click the </> web icon to register an app
+// 4. Copy your config object and paste it below
+// 5. Go to Firestore Database → Create database → Start in TEST MODE
+//
+// That's it. No credit card, no server, no code to deploy.
+// ══════════════════════════════════════════════
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDydvnuOEMCfwdFu62qYMsdbWWSq0dWYAQ",
+  authDomain: "panini-tracker-7e200.firebaseapp.com",
+  projectId: "panini-tracker-7e200",
+  storageBucket: "panini-tracker-7e200.firebasestorage.app",
+  messagingSenderId: "885994702522",
+  appId: "1:885994702522:web:16438270bb048b36682483"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ── ALBUM DATA ──
+const ALBUM = [
+  {code:"FWC",name:"FIFA World Cup",range:[1,20],color:"#D4AF37",flag:"🏆"},
+  {code:"USA",name:"USA",range:[21,40],color:"#B31942",flag:"🇺🇸"},
+  {code:"MEX",name:"Mexico",range:[41,60],color:"#006847",flag:"🇲🇽"},
+  {code:"CAN",name:"Canada",range:[61,80],color:"#FF0000",flag:"🇨🇦"},
+  {code:"ARG",name:"Argentina",range:[81,100],color:"#75AADB",flag:"🇦🇷"},
+  {code:"BRA",name:"Brazil",range:[101,120],color:"#009739",flag:"🇧🇷"},
+  {code:"FRA",name:"France",range:[121,140],color:"#002395",flag:"🇫🇷"},
+  {code:"GER",name:"Germany",range:[141,160],color:"#DD0000",flag:"🇩🇪"},
+  {code:"ENG",name:"England",range:[161,180],color:"#CF081F",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿"},
+  {code:"ESP",name:"Spain",range:[181,200],color:"#AA151B",flag:"🇪🇸"},
+  {code:"POR",name:"Portugal",range:[201,220],color:"#006600",flag:"🇵🇹"},
+  {code:"NED",name:"Netherlands",range:[221,240],color:"#FF6600",flag:"🇳🇱"},
+  {code:"ITA",name:"Italy",range:[241,260],color:"#0066CC",flag:"🇮🇹"},
+  {code:"JPN",name:"Japan",range:[261,280],color:"#BC002D",flag:"🇯🇵"},
+  {code:"KOR",name:"South Korea",range:[281,300],color:"#CD2E3A",flag:"🇰🇷"},
+  {code:"AUS",name:"Australia",range:[301,320],color:"#00843D",flag:"🇦🇺"},
+  {code:"MAR",name:"Morocco",range:[321,340],color:"#C1272D",flag:"🇲🇦"},
+  {code:"SEN",name:"Senegal",range:[341,360],color:"#00853F",flag:"🇸🇳"},
+  {code:"URU",name:"Uruguay",range:[361,380],color:"#5CBFEB",flag:"🇺🇾"},
+  {code:"COL",name:"Colombia",range:[381,400],color:"#FCD116",flag:"🇨🇴"},
+  {code:"ECU",name:"Ecuador",range:[401,420],color:"#FFD100",flag:"🇪🇨"},
+  {code:"QAT",name:"Qatar",range:[421,440],color:"#8A1538",flag:"🇶🇦"},
+  {code:"SAU",name:"Saudi Arabia",range:[441,460],color:"#006C35",flag:"🇸🇦"},
+  {code:"CRO",name:"Croatia",range:[461,480],color:"#FF0000",flag:"🇭🇷"},
+  {code:"SRB",name:"Serbia",range:[481,500],color:"#C6363C",flag:"🇷🇸"},
+];
+const TOTAL = 500;
+const groupFor = n => ALBUM.find(g => n >= g.range[0] && n <= g.range[1]);
+
+// ── STATE ──
+let state = {
+  profile: null,       // { name, room }
+  stickers: {},        // { stickerNum: count }
+  members: {},         // { name: { stickers } }
+  page: "feed",
+  selGroup: null,
+  filter: "all",
+  justAdded: [],
+  loading: true,
+  setupStep: 0,
+  unsubscribe: null,   // firestore listener
+};
+
+// ── LOCAL STORAGE for profile + stickers (offline backup) ──
+function saveLocal() {
+  try {
+    localStorage.setItem("pn-profile", JSON.stringify(state.profile));
+    localStorage.setItem("pn-stickers", JSON.stringify(state.stickers));
+  } catch {}
+}
+function loadLocal() {
+  try {
+    const p = localStorage.getItem("pn-profile");
+    const s = localStorage.getItem("pn-stickers");
+    if (p) state.profile = JSON.parse(p);
+    if (s) state.stickers = JSON.parse(s);
+  } catch {}
+}
+
+// ── FIREBASE OPS ──
+async function saveToFirestore() {
+  if (!state.profile?.room || !state.profile?.name) return;
+  try {
+    await db.collection("rooms").doc(state.profile.room)
+      .collection("members").doc(state.profile.name)
+      .set({ stickers: state.stickers, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  } catch (e) { console.warn("Firestore save error:", e); }
+}
+
+function listenToRoom() {
+  if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
+  if (!state.profile?.room) return;
+
+  state.unsubscribe = db.collection("rooms").doc(state.profile.room)
+    .collection("members")
+    .onSnapshot(snap => {
+      const m = {};
+      snap.forEach(doc => {
+        if (doc.id === state.profile.name) return;
+        const d = doc.data();
+        if (d.stickers) m[doc.id] = d.stickers;
+      });
+      state.members = m;
+      render();
+    }, err => { console.warn("Listener error:", err); });
+}
+
+// ── TOAST ──
+let toastTimer = null;
+function flash(msg) {
+  state.toast = msg;
+  render();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { state.toast = ""; render(); }, 2800);
+}
+
+// ── ACTIONS ──
+function addSticker(n) {
+  state.stickers[n] = (state.stickers[n] || 0) + 1;
+  saveLocal(); saveToFirestore(); render();
+}
+function removeSticker(n) {
+  if (!state.stickers[n]) return;
+  state.stickers[n]--;
+  if (state.stickers[n] <= 0) delete state.stickers[n];
+  saveLocal(); saveToFirestore(); render();
+}
+function quickAdd() {
+  const el = document.getElementById("quick-input");
+  if (!el) return;
+  const nums = el.value.split(/[\s,;]+/).map(n => parseInt(n)).filter(n => n >= 1 && n <= TOTAL);
+  if (!nums.length) { flash("Enter numbers 1–500"); return; }
+  nums.forEach(n => { state.stickers[n] = (state.stickers[n] || 0) + 1; });
+  el.value = "";
+  saveLocal(); saveToFirestore();
+  // Instant trade alerts
+  const alerts = [];
+  Object.entries(state.members).forEach(([name, ms]) => {
+    const canGet = nums.filter(n => !state.stickers[n] && ms[n] > 1);
+    if (canGet.length) alerts.push(`${name} has #${canGet[0]} you need!`);
+    const canGive = nums.filter(n => (state.stickers[n] || 0) > 1 && !ms[n]);
+    if (canGive.length) alerts.push(`You have #${canGive[0]} ${name} needs!`);
+  });
+  state.justAdded = nums;
+  render();
+  setTimeout(() => { state.justAdded = []; render(); }, 4000);
+  flash(alerts.length ? alerts[0] : `+${nums.length} sticker${nums.length > 1 ? "s" : ""}`);
+}
+
+async function finishSetup(room) {
+  const nameEl = document.getElementById("name-input");
+  const name = nameEl ? nameEl.value.trim() : "";
+  if (!name) return;
+  state.profile = { name, room: room || null };
+  state.setupStep = 0;
+  saveLocal();
+  if (room) { await saveToFirestore(); listenToRoom(); }
+  flash(`Welcome ${name}!`);
+  render();
+}
+async function joinRoom(code) {
+  state.profile.room = code.trim().toUpperCase();
+  saveLocal(); await saveToFirestore(); listenToRoom();
+  flash(`Joined ${state.profile.room}!`);
+  render();
+}
+async function leaveRoom() {
+  if (!state.profile?.room) return;
+  try {
+    await db.collection("rooms").doc(state.profile.room)
+      .collection("members").doc(state.profile.name).delete();
+  } catch {}
+  if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
+  state.profile.room = null;
+  state.members = {};
+  saveLocal(); render();
+  flash("Left room");
+}
+
+async function shareText(type) {
+  const p = state.profile;
+  const stats = getStats();
+  let t = `⚽ Panini WC 2026 — ${p?.name}\n`;
+  if (type === "dupes") {
+    const d = getDupes();
+    t += `\n🔄 Dupes (${d.length}):\n${d.map(x => `#${x.n} x${x.extra}`).join(", ") || "None"}`;
+  } else if (type === "missing") {
+    const m = getMissing();
+    t += `\n❌ Need (${m.length}):\n${m.join(", ") || "Complete!"}`;
+  } else {
+    t += `✅ ${stats.owned}/${TOTAL} (${stats.pct}%)\n🔄 ${stats.dupes} dupes | ❌ ${stats.missing} missing`;
+    if (p?.room) t += `\n🏠 Room: ${p.room}`;
+  }
+  if (navigator.share) { try { await navigator.share({ text: t }); return; } catch {} }
+  try { await navigator.clipboard.writeText(t); flash("Copied!"); } catch {}
+}
+
+// ── COMPUTED ──
+function getStats() {
+  const owned = Object.keys(state.stickers).length;
+  const dupes = Object.values(state.stickers).reduce((s, v) => s + Math.max(0, v - 1), 0);
+  return { owned, missing: TOTAL - owned, dupes, pct: Math.round((owned / TOTAL) * 100) };
+}
+function getMissing() {
+  const m = []; for (let i = 1; i <= TOTAL; i++) if (!state.stickers[i]) m.push(i); return m;
+}
+function getDupes() {
+  return Object.entries(state.stickers).filter(([,v]) => v > 1).map(([k,v]) => ({ n: +k, extra: v - 1 })).sort((a,b) => a.n - b.n);
+}
+function getGroupStats(g) {
+  let owned = 0, dupes = 0;
+  for (let i = g.range[0]; i <= g.range[1]; i++) { if (state.stickers[i]) { owned++; dupes += state.stickers[i] - 1; } }
+  return { owned, total: g.range[1] - g.range[0] + 1, dupes };
+}
+function getTradeFeed() {
+  const feed = [];
+  Object.entries(state.members).forEach(([name, ms]) => {
+    const theyGive = [], youGive = [];
+    for (let i = 1; i <= TOTAL; i++) {
+      const mine = state.stickers[i] || 0;
+      const theirs = ms[i] || 0;
+      if (theirs > 1 && mine === 0) theyGive.push(i);
+      if (mine > 1 && theirs === 0) youGive.push(i);
+    }
+    if (theyGive.length || youGive.length)
+      feed.push({ name, theyGive, youGive, fairTrades: Math.min(theyGive.length, youGive.length) });
+  });
+  feed.sort((a, b) => b.fairTrades - a.fairTrades);
+  return feed;
+}
+
+// ══════════════════════════════
+// ══  RENDER  ═════════════════
+// ══════════════════════════════
+function render() {
+  const app = document.getElementById("app");
+
+  // LOADING
+  if (state.loading) {
+    app.innerHTML = `<div class="loading"><div class="loading-ball">⚽</div></div>`;
+    return;
+  }
+
+  // ONBOARDING
+  if (!state.profile) {
+    app.innerHTML = `
+      <div class="onboard">
+        <div style="font-size:64px;margin-bottom:4px">⚽</div>
+        <h1 class="logo">PANINI<span>WC 2026</span></h1>
+        <p style="color:var(--muted);font-size:13px;margin:8px 0 36px;line-height:1.5">
+          Track stickers. Find trades with friends.<br>Complete the album.
+        </p>
+        ${state.setupStep === 0 ? `
+          <div class="fadeUp">
+            <input class="on-input" id="name-input" placeholder="What's your name?" maxlength="20"
+              onkeydown="if(event.key==='Enter')document.getElementById('next-btn').click()">
+            <button class="big-btn" id="next-btn" onclick="
+              var v=document.getElementById('name-input').value.trim();
+              if(v){state.setupStep=1;render()}
+            ">Next →</button>
+          </div>
+        ` : state.setupStep === 1 ? `
+          <div class="fadeUp">
+            <p style="color:#aaa;font-size:14px;margin-bottom:20px">
+              Want to trade stickers with friends?
+            </p>
+            <button class="big-btn" onclick="state.setupStep=2;render()">🏠 Create a room</button>
+            <button class="big-btn" style="background:var(--card);color:#fff;border:1px solid var(--border)"
+              onclick="state.setupStep=3;render()">🔑 Join a friend's room</button>
+            <button class="ghost-btn" onclick="finishSetup(null)">Skip, I'll trade later</button>
+          </div>
+        ` : state.setupStep === 2 ? `
+          <div class="fadeUp">
+            <p style="color:#aaa;font-size:14px;margin-bottom:10px">Pick a code your friends will use:</p>
+            <input class="on-input" id="room-create-input" placeholder="e.g. SQUAD99" maxlength="12"
+              style="text-transform:uppercase;letter-spacing:2px"
+              oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+            <button class="big-btn" onclick="
+              var v=document.getElementById('room-create-input').value.trim();
+              if(v)finishSetup(v);
+            ">Create room</button>
+            <button class="ghost-btn" onclick="state.setupStep=1;render()">← Back</button>
+          </div>
+        ` : `
+          <div class="fadeUp">
+            <p style="color:#aaa;font-size:14px;margin-bottom:10px">Enter the code your friend shared:</p>
+            <input class="on-input" id="room-join-input" placeholder="Room code" maxlength="12"
+              style="text-transform:uppercase;letter-spacing:2px"
+              oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+            <button class="big-btn" onclick="
+              var v=document.getElementById('room-join-input').value.trim();
+              if(v)finishSetup(v);
+            ">Join</button>
+            <button class="ghost-btn" onclick="state.setupStep=1;render()">← Back</button>
+          </div>
+        `}
+      </div>`;
+    return;
+  }
+
+  // MAIN APP
+  const stats = getStats();
+  const tradeFeed = getTradeFeed();
+  const totalAlerts = tradeFeed.reduce((s, t) => s + t.theyGive.length + t.youGive.length, 0);
+
+  let content = "";
+
+  // ═══ FEED ═══
+  if (state.page === "feed") {
+    const roomCode = state.profile.room;
+    const memberCount = Object.keys(state.members).length;
+
+    if (!roomCode) {
+      content = `
+        <div class="empty-card">
+          <div style="font-size:40px;margin-bottom:8px">👥</div>
+          <p class="empty-title">Join a room to trade!</p>
+          <p class="empty-desc">Create a room and share the code with friends. When they log stickers, trade matches show up right here.</p>
+          <button class="action-btn" onclick="state.page='room';render()">Set up a room</button>
+        </div>`;
+    } else if (memberCount === 0) {
+      content = `
+        <div class="empty-card">
+          <div style="font-size:40px;margin-bottom:8px">📡</div>
+          <p class="empty-title">Waiting for friends…</p>
+          <p class="empty-desc">Share room code <strong style="color:var(--teal);letter-spacing:2px">${roomCode}</strong> with your friends. Once they join and log stickers, trades appear here automatically.</p>
+          <button class="action-btn" onclick="shareText('room')">📤 Invite friends</button>
+        </div>`;
+    } else if (tradeFeed.length === 0) {
+      content = `
+        <div class="empty-card">
+          <div style="font-size:40px;margin-bottom:8px">📭</div>
+          <p class="empty-title">No trades available yet</p>
+          <p class="empty-desc">Keep opening packs! As everyone logs more stickers, trade matches will appear here in real time.</p>
+        </div>`;
+    } else {
+      content = tradeFeed.map(t => `
+        <div class="trade-card fadeUp">
+          <div class="trade-friend">
+            <div class="avatar">${t.name[0].toUpperCase()}</div>
+            <div>
+              <div class="trade-name">${esc(t.name)}</div>
+              <div style="font-size:11px;color:var(--muted)">
+                ${t.fairTrades} fair trade${t.fairTrades !== 1 ? "s" : ""} possible
+              </div>
+            </div>
+          </div>
+          ${t.theyGive.length ? `
+            <div class="trade-section">
+              <div class="trade-label trade-label-green">
+                <span class="trade-dot" style="background:var(--green)"></span>
+                ${esc(t.name)} has ${t.theyGive.length} sticker${t.theyGive.length !== 1 ? "s" : ""} you need
+              </div>
+              <div class="chip-wrap">
+                ${t.theyGive.slice(0, 40).map(n => {
+                  const g = groupFor(n);
+                  return `<span class="chip chip-green">${g ? g.flag : ""} ${n}</span>`;
+                }).join("")}
+                ${t.theyGive.length > 40 ? `<span style="color:#666;font-size:11px;padding:4px">+${t.theyGive.length - 40} more</span>` : ""}
+              </div>
+            </div>
+          ` : ""}
+          ${t.youGive.length ? `
+            <div class="trade-section">
+              <div class="trade-label trade-label-orange">
+                <span class="trade-dot" style="background:var(--orange)"></span>
+                You have ${t.youGive.length} sticker${t.youGive.length !== 1 ? "s" : ""} ${esc(t.name)} needs
+              </div>
+              <div class="chip-wrap">
+                ${t.youGive.slice(0, 40).map(n => {
+                  const g = groupFor(n);
+                  return `<span class="chip chip-orange">${g ? g.flag : ""} ${n}</span>`;
+                }).join("")}
+                ${t.youGive.length > 40 ? `<span style="color:#666;font-size:11px;padding:4px">+${t.youGive.length - 40} more</span>` : ""}
+              </div>
+            </div>
+          ` : ""}
+          <div class="trade-footer">✅ ${t.fairTrades} fair trade${t.fairTrades !== 1 ? "s" : ""} possible</div>
+        </div>
+      `).join("");
+    }
+
+    content = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 class="sec">🔔 Trade Updates</h2>
+        ${roomCode ? `<span style="font-size:10px;color:var(--green)">● Live</span>` : ""}
+      </div>
+      ${content}`;
+  }
+
+  // ═══ ALBUM ═══
+  else if (state.page === "album" && !state.selGroup) {
+    content = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2 class="sec">📋 My Album</h2>
+        <div style="display:flex;gap:6px">
+          <button class="sync-btn" style="font-size:11px" onclick="shareText('dupes')">🔄 ${stats.dupes}</button>
+          <button class="sync-btn" style="font-size:11px" onclick="shareText('missing')">❌ ${stats.missing}</button>
+        </div>
+      </div>
+      <div class="team-grid">
+        ${ALBUM.map(g => {
+          const gs = getGroupStats(g);
+          const pct = Math.round((gs.owned / gs.total) * 100);
+          const done = pct === 100;
+          return `
+            <button class="team-card" style="border-left-color:${g.color};${done ? "background:#4ECDC410" : ""}"
+              onclick="state.selGroup='${g.code}';state.filter='all';render()">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:18px">${g.flag}</span>
+                ${done ? `<span class="team-done">✓</span>` : gs.dupes > 0 ? `<span class="team-dupe">${gs.dupes}d</span>` : ""}
+              </div>
+              <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;margin:3px 0">${g.code}</div>
+              <div class="team-bar"><div class="team-bar-fill" style="width:${pct}%;background:${done ? "var(--teal)" : g.color}"></div></div>
+              <div class="team-count">${gs.owned}/${gs.total}</div>
+            </button>`;
+        }).join("")}
+      </div>`;
+  }
+
+  // ═══ TEAM DETAIL ═══
+  else if (state.page === "album" && state.selGroup) {
+    const g = ALBUM.find(x => x.code === state.selGroup);
+    if (g) {
+      const nums = [];
+      for (let i = g.range[0]; i <= g.range[1]; i++) nums.push(i);
+      const filtered = nums.filter(n => {
+        const c = state.stickers[n] || 0;
+        if (state.filter === "owned") return c > 0;
+        if (state.filter === "missing") return c === 0;
+        if (state.filter === "dupes") return c > 1;
+        return true;
+      });
+
+      content = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button class="s-btn" style="width:32px;height:32px;border:1px solid #ffffff18;color:#fff" onclick="state.selGroup=null;render()">←</button>
+          <span style="font-size:26px">${g.flag}</span>
+          <div>
+            <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700">${g.name}</div>
+            <div style="color:#666;font-size:11px">#${g.range[0]}–${g.range[1]}</div>
+          </div>
+        </div>
+        <div class="filter-row">
+          ${[["all","All"],["owned","Have"],["missing","Need"],["dupes","Dupes"]].map(([k,l]) =>
+            `<button class="f-btn${state.filter===k?" on":""}" onclick="state.filter='${k}';render()">${l}</button>`
+          ).join("")}
+        </div>
+        <div class="sticker-grid">
+          ${filtered.map(n => {
+            const c = state.stickers[n] || 0;
+            const has = c > 0;
+            let friendHas = false, friendNeeds = false;
+            Object.values(state.members).forEach(ms => {
+              if (!c && ms[n] > 1) friendHas = true;
+              if (c > 1 && !ms[n]) friendNeeds = true;
+            });
+            return `
+              <div class="sticker" style="background:${has ? g.color + "15" : "#0c0c16"};border-color:${has ? g.color + "44" : "#1a1a28"}">
+                ${friendHas && !has ? `<div class="friend-dot" style="color:var(--green)">●</div>` : ""}
+                ${friendNeeds && c > 1 ? `<div class="friend-dot" style="color:var(--orange)">●</div>` : ""}
+                <div class="sticker-num" style="color:${has ? "#fff" : "#333"}">${n}</div>
+                ${c > 1 ? `<div class="sticker-dupe">x${c}</div>` : ""}
+                <div class="sticker-actions">
+                  <button class="s-btn" onclick="removeSticker(${n})">−</button>
+                  <button class="s-btn" style="background:${g.color}30;color:${g.color}" onclick="addSticker(${n})">+</button>
+                </div>
+              </div>`;
+          }).join("")}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;font-size:10px;color:#555;justify-content:center">
+          <span><span style="color:var(--green)">●</span> Friend has it</span>
+          <span><span style="color:var(--orange)">●</span> Friend needs yours</span>
+        </div>`;
+    }
+  }
+
+  // ═══ ROOM ═══
+  else if (state.page === "room") {
+    if (state.profile.room) {
+      const mc = Object.keys(state.members).length;
+      content = `
+        <h2 class="sec">👥 Room</h2>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="color:#666;font-size:10px;text-transform:uppercase;letter-spacing:1px">Room Code</div>
+              <div class="room-code">${state.profile.room}</div>
+            </div>
+            <span style="color:var(--green);font-size:11px">● Live</span>
+          </div>
+          <div style="margin-top:16px">
+            <div style="color:#666;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Members (${mc + 1})</div>
+            <div class="card" style="padding:0;background:#0c0c16">
+              <div class="member-row">
+                <div class="avatar" style="width:28px;height:28px;font-size:12px;background:#D4AF3730;color:var(--gold)">${state.profile.name[0].toUpperCase()}</div>
+                <span style="flex:1">${esc(state.profile.name)} <span style="color:#555">(you)</span></span>
+                <span style="color:var(--teal);font-size:12px">${stats.owned}/${TOTAL}</span>
+              </div>
+              ${Object.entries(state.members).map(([name, ms]) => `
+                <div class="member-row">
+                  <div class="avatar" style="width:28px;height:28px;font-size:12px">${name[0].toUpperCase()}</div>
+                  <span style="flex:1">${esc(name)}</span>
+                  <span style="color:var(--muted);font-size:12px">${Object.keys(ms).length}/${TOTAL}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+        <button class="action-btn" onclick="
+          var t='Join my Panini WC 2026 room!\\n\\nRoom code: ${state.profile.room}\\n\\nOpen the tracker and enter this code 👆';
+          if(navigator.share){navigator.share({text:t}).catch(function(){navigator.clipboard.writeText(t).then(function(){flash('Copied!')})});}
+          else{navigator.clipboard.writeText(t).then(function(){flash('Copied!')});}
+        ">📤 Invite friends</button>
+        <button class="action-btn" style="background:#ff444415;color:#ff6666;border-color:#ff444430" onclick="leaveRoom()">Leave room</button>`;
+    } else {
+      content = `
+        <h2 class="sec">👥 Room</h2>
+        <div class="card">
+          <p style="color:#aaa;font-size:14px;margin:0 0 16px;line-height:1.5">
+            Join a room with friends to automatically see who has stickers you need and who needs yours. Updates happen <strong style="color:var(--teal)">in real time</strong>.
+          </p>
+          <div style="margin-bottom:16px">
+            <div style="color:#666;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Create new room</div>
+            <div style="display:flex;gap:8px">
+              <input class="room-in" id="room-create" placeholder="e.g. SQUAD99" maxlength="12"
+                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+              <button class="add-btn" onclick="var v=document.getElementById('room-create').value.trim();if(v)joinRoom(v)">Create</button>
+            </div>
+          </div>
+          <div>
+            <div style="color:#666;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Join existing</div>
+            <div style="display:flex;gap:8px">
+              <input class="room-in" id="room-join" placeholder="Enter code" maxlength="12"
+                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+              <button class="add-btn" onclick="var v=document.getElementById('room-join').value.trim();if(v)joinRoom(v)">Join</button>
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
+  // ═══ MORE ═══
+  else if (state.page === "more") {
+    content = `
+      <h2 class="sec">⚙️ More</h2>
+      <div class="card">
+        <div style="color:#666;font-size:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Share with friends</div>
+        <button class="action-btn" style="margin-top:0" onclick="shareText('summary')">📊 Collection summary</button>
+        <button class="action-btn" onclick="shareText('dupes')">🔄 My duplicates</button>
+        <button class="action-btn" onclick="shareText('missing')">❌ My missing list</button>
+      </div>
+      <div class="card">
+        <div style="color:#666;font-size:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Your stats</div>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-num" style="color:#fff">${stats.owned}</div><div style="color:var(--muted);font-size:11px">Owned</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--orange)">${stats.missing}</div><div style="color:var(--muted);font-size:11px">Missing</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--teal)">${stats.dupes}</div><div style="color:var(--muted);font-size:11px">Duplicates</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--gold)">${stats.pct}%</div><div style="color:var(--muted);font-size:11px">Complete</div></div>
+        </div>
+      </div>
+      <div class="card" style="border-color:#ff444425">
+        <div style="color:#ff6666;font-size:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Danger zone</div>
+        <button class="action-btn" style="background:#ff444415;color:#ff6666;border-color:#ff444430;margin-top:0"
+          onclick="if(confirm('Delete ALL stickers?')){state.stickers={};saveLocal();saveToFirestore();flash('Reset!');render()}">
+          🗑️ Reset collection
+        </button>
+      </div>`;
+  }
+
+  // ASSEMBLE
+  app.innerHTML = `
+    ${state.toast ? `<div class="toast">${esc(state.toast)}</div>` : ""}
+    <div class="hdr">
+      <div>
+        <h1 class="hdr-title">PANINI 2026</h1>
+        <div class="hdr-meta">
+          <span style="color:var(--gold)">${esc(state.profile.name)}</span>
+          ${state.profile.room ? `<span style="color:var(--teal);margin-left:8px">🏠 ${esc(state.profile.room)}</span>` : ""}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="hdr-pct">${stats.pct}<span style="font-size:11px;color:var(--muted)">%</span></div>
+        <div style="font-size:10px;color:#666">${stats.owned}/${TOTAL}</div>
+      </div>
+    </div>
+    <div class="prog"><div class="prog-fill" style="width:${stats.pct}%"></div></div>
+
+    <div class="add-row">
+      <input class="add-in" id="quick-input" placeholder="Opened a pack? Type: 12, 45, 99…"
+        onkeydown="if(event.key==='Enter')quickAdd()" inputmode="numeric">
+      <button class="add-btn" onclick="quickAdd()">Add</button>
+    </div>
+
+    ${state.justAdded.length ? `
+      <div class="just-added">
+        <span style="color:var(--teal);font-size:12px">✓ Added:</span>
+        ${state.justAdded.map(n => {
+          const g = groupFor(n);
+          return `<span class="added-chip" style="border-color:${g ? g.color + "66" : "#444"};color:${g ? g.color : "#fff"}">#${n}</span>`;
+        }).join("")}
+      </div>
+    ` : ""}
+
+    <div class="nav">
+      ${[
+        ["feed","🔔","Trades",totalAlerts],
+        ["album","📋","Album",0],
+        ["room","👥","Room",0],
+        ["more","⚙️","More",0],
+      ].map(([k,ico,label,badge]) => `
+        <button class="nav-btn${state.page===k?" on":""}" onclick="state.page='${k}';state.selGroup=null;render()">
+          <span class="nav-ico">${ico}${badge > 0 && k === "feed" ? `<span class="nav-badge">${badge > 99 ? "99+" : badge}</span>` : ""}</span>
+          <span>${label}</span>
+        </button>
+      `).join("")}
+    </div>
+
+    <div class="body">${content}</div>
+  `;
+}
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+// ── BOOT ──
+loadLocal();
+state.loading = false;
+render();
+if (state.profile?.room) listenToRoom();
+</script>
+</body>
+</html>
