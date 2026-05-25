@@ -305,8 +305,7 @@ function quickAdd() {
 }
 
 async function finishSetup(room) {
-  const nameEl = document.getElementById("name-input");
-  const name = nameEl ? nameEl.value.trim() : "";
+  const name = state.tempName || "";
   if (!name) return;
   state.profile = { name, room: room || null };
   state.setupStep = 0;
@@ -413,7 +412,7 @@ function render() {
               onkeydown="if(event.key==='Enter')document.getElementById('next-btn').click()">
             <button class="big-btn" id="next-btn" onclick="
               var v=document.getElementById('name-input').value.trim();
-              if(v){state.setupStep=1;render()}
+              if(v){state.tempName=v;state.setupStep=1;render()}
             ">Next →</button>
           </div>
         ` : state.setupStep === 1 ? `
