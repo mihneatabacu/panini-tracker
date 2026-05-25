@@ -676,9 +676,17 @@ function render(){
           <div class="stat-box"><div class="stat-num" style="color:var(--gold)">${stats.pct}%</div><div style="color:var(--muted);font-size:11px">Complete</div></div>
         </div>
       </div>
+      <div class="card"><div style="color:#666;font-size:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Account</div>
+        <div style="color:var(--muted);font-size:12px;margin-bottom:8px">Logged in as <strong style="color:#fff">${esc(state.profile.name)}</strong>${state.profile.room?` · Room: <strong style="color:var(--teal)">${esc(state.profile.room)}</strong>`:""}</div>
+        ${state.profile.room?`<button class="action-btn" style="margin-top:0" onclick="leaveRoom()">🚪 Leave room</button>`:""}
+        <button class="action-btn" style="background:#ff444415;color:#ff6666;border-color:#ff444430"
+          onclick="if(confirm('Log out? Your stickers stay saved on this device.')){if(state.unsubscribe)state.unsubscribe();state.profile=null;state.members={};saveLocal();render()}">🔓 Log out (change name/room)</button>
+      </div>
       <div class="card" style="border-color:#ff444425"><div style="color:#ff6666;font-size:10px;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Danger zone</div>
         <button class="action-btn" style="background:#ff444415;color:#ff6666;border-color:#ff444430;margin-top:0"
           onclick="if(confirm('Delete ALL stickers?')){state.stickers={};saveLocal();saveToFirestore();flash('Reset!');render()}">🗑️ Reset collection</button>
+        <button class="action-btn" style="background:#ff444415;color:#ff6666;border-color:#ff444430"
+          onclick="if(confirm('Full reset? This clears EVERYTHING — stickers, profile, auth.')){localStorage.clear();location.reload()}">💣 Full reset (nuke everything)</button>
       </div>`;
   }
 
