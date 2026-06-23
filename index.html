@@ -13,7 +13,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;max-width:480px;margin:0 auto;min-height:100vh;overflow-x:hidden}
 h1,h2,h3{font-family:'Oswald',sans-serif;letter-spacing:1px}
-button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none}
+button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none;color:var(--text)}
 button:active{transform:scale(.97)}
 input{font-family:'DM Sans',sans-serif;outline:none}
 input::placeholder{color:var(--dim)}
@@ -276,7 +276,7 @@ function listenToRoom(){
 }
 
 let toastTimer=null;
-function flash(msg){state.toast=msg;render();clearTimeout(toastTimer);toastTimer=setTimeout(()=>{state.toast="";render()},2800)}
+function flash(msg){state.toast=msg;render();clearTimeout(toastTimer);toastTimer=setTimeout(()=>{state.toast="";render()},3500)}
 
 function postRender(){
   // Fix 2: restore search focus
@@ -326,6 +326,20 @@ function navigateAway(target){
   render();
 }
 
+// Bulk fill/clear a list of codes — stages into pending so user reviews & Saves (Discard = undo)
+function bulkSet(codes,fill){
+  let changed=0;
+  codes.forEach(c=>{
+    if(fill){if(getEffective(c)===0){state.pending[c]=(state.pending[c]||0)+1;changed++}}
+    else{if(getEffective(c)>0){state.pending[c]=-(state.stickers[c]||0);if(state.pending[c]===0)delete state.pending[c];changed++}}
+  });
+  state.hasPending=Object.values(state.pending).some(v=>v!==0);
+  if(changed)flash(fill?`+${changed} staged — review & Save`:`${changed} cleared — review & Save`);
+  else flash(fill?"Team already complete":"Nothing to clear");
+  render();
+}
+function bulkTeam(tc,fill){bulkSet(Array.from({length:20},(_,i)=>tc+(i+1)),fill)}
+
 function quickAdd(trackPack){
   const el=document.getElementById("quick-input");if(!el)return;
   const raw=el.value.toUpperCase().trim();
@@ -359,16 +373,28 @@ function quickAdd(trackPack){
     state.packStats.newStickers+=newCount;
     state.packStats.dupes+=dupeCount;
   }
-  el.value="";saveLocal();saveToFirestore();
+  el.value="";state.lastAddInfo={codes:codes.slice(),trackPack,newCount,dupeCount};saveLocal();saveToFirestore();
   state.justAdded=codes;render();
-  setTimeout(()=>{state.justAdded=[];render()},4000);
+  setTimeout(()=>{state.justAdded=[];render()},6000);
   flash(trackPack?`📦 +${newCount} new, ${dupeCount} dupe${dupeCount!==1?"s":""}`:`+${codes.length} sticker${codes.length>1?"s":""}`);
+}
+function undoQuickAdd(){
+  const info=state.lastAddInfo;if(!info)return;
+  info.codes.forEach(c=>{if(state.stickers[c]){state.stickers[c]--;if(state.stickers[c]<=0)delete state.stickers[c]}});
+  if(info.trackPack){
+    state.packStats.packs=Math.max(0,state.packStats.packs-1);
+    state.packStats.added=Math.max(0,state.packStats.added-info.codes.length);
+    state.packStats.newStickers=Math.max(0,state.packStats.newStickers-info.newCount);
+    state.packStats.dupes=Math.max(0,state.packStats.dupes-info.dupeCount);
+  }
+  state.lastAddInfo=null;state.justAdded=[];saveLocal();saveToFirestore();flash("Undone");render();
 }
 
 // ── SETUP ──
 async function finishSetup(room){
   const name=state.tempName||"";if(!name)return;
   const pin=state.tempPin||"";if(!pin){flash("Enter a PIN");return}
+  room=room||state.pendingRoom||null;state.pendingRoom=null; // honor an invite-link room
   const uid=simpleHash(name.toLowerCase()+"::"+pin);
   state.profile={name,room:room||null,roomKey:room||null,uid,pin};
   state.setupStep=0;saveLocal();
@@ -384,7 +410,9 @@ async function joinRoom(code){
   code=code.trim().toUpperCase();
   state.profile.room=code;
   state.profile.roomKey=code;
-  saveLocal();await saveToFirestore();listenToRoom();
+  saveLocal();
+  await syncFromFirestore(); // pull this name+PIN's existing collection BEFORE pushing — cross-device safe
+  await saveToFirestore();listenToRoom();
   flash(`Joined ${code}!`);render();
 }
 async function leaveRoom(){
@@ -451,6 +479,14 @@ async function shareText(type){
   }
   if(navigator.share){try{await navigator.share({text:t});return}catch{}}
   try{await navigator.clipboard.writeText(t);flash("Copied!")}catch{}
+}
+function roomLink(){return location.origin+location.pathname+"?room="+encodeURIComponent(state.profile?.room||"")}
+async function inviteToRoom(){
+  if(!state.profile?.room){flash("Create a room first");return}
+  const link=roomLink();
+  const text=`Join my Panini WC 2026 room "${state.profile.room}" — tap to join:`;
+  try{if(navigator.share){await navigator.share({title:"Panini WC 2026",text,url:link});return}}catch{return}
+  try{await navigator.clipboard.writeText(link);flash("Invite link copied!")}catch{flash(link)}
 }
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
 
@@ -520,7 +556,7 @@ function render(){
   if(state.page==="feed"){
     const rm=state.profile.room;const mc=Object.keys(state.members).length;
     if(!rm)content=`<div class="empty-card"><div style="font-size:40px;margin-bottom:8px">👥</div><p class="empty-title">Join a room to trade!</p><p class="empty-desc">Create a room and share the code with friends.</p><button class="action-btn" onclick="state.page='room';render()">Set up a room</button></div>`;
-    else if(!mc)content=`<div class="empty-card"><div style="font-size:40px;margin-bottom:8px">📡</div><p class="empty-title">Waiting for friends…</p><p class="empty-desc">Share code <strong style="color:var(--teal);letter-spacing:2px">${rm}</strong> with friends.</p><button class="action-btn" onclick="shareText('room')">📤 Invite friends</button></div>`;
+    else if(!mc)content=`<div class="empty-card"><div style="font-size:40px;margin-bottom:8px">📡</div><p class="empty-title">Waiting for friends…</p><p class="empty-desc">Share code <strong style="color:var(--teal);letter-spacing:2px">${rm}</strong> with friends.</p><button class="action-btn" onclick="inviteToRoom()">📤 Share invite link</button></div>`;
     else if(!tradeFeed.length)content=`<div class="empty-card"><div style="font-size:40px;margin-bottom:8px">📭</div><p class="empty-title">No trades yet</p><p class="empty-desc">Keep collecting! Matches appear in real time.</p></div>`;
     else content=tradeFeed.map(t=>`<div class="trade-card fadeUp">
       <div class="trade-friend"><div class="avatar">${t.name[0].toUpperCase()}</div><div><div class="trade-name">${esc(t.name)}</div><div style="font-size:11px;color:var(--muted)">${t.fairTrades} fair trade${t.fairTrades!==1?"s":""}</div></div></div>
@@ -535,7 +571,8 @@ function render(){
     // FWC section
     const fs=getFWCStats();const fpct=Math.round((fs.owned/fs.total)*100);
     const cs=getColaStats();const cpct=Math.round((cs.owned/cs.total)*100);
-    content=`<h2 class="sec">📋 Album</h2>
+    content=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec" style="margin:0">📋 Album</h2><button class="f-btn" style="border-color:#4ECDC480;color:var(--teal);padding:6px 14px" onclick="document.getElementById('smart-file').click()">📷 Smart scan</button></div>
+      <input id="smart-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="paniniSmartScan(this)">
       <button class="grp-card" style="width:100%;margin-bottom:8px;border-left-color:var(--gold)" onclick="state.selGroup='FWC';render()">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><span style="font-size:18px">🏆</span> <span style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px">FIFA World Cup</span></div>
@@ -572,6 +609,7 @@ function render(){
         <button class="s-btn" style="width:32px;height:32px;border:1px solid #ffffff18;color:#fff" onclick="navigateAway('backFromGroup')">←</button>
         <span style="font-size:26px">🏆</span><div><div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700">FIFA World Cup</div><div style="color:#999;font-size:11px">Intro & Museum</div></div>
       </div>
+      <div class="filter-row"><button class="f-btn" style="border-color:#22c55e40;color:var(--green)" onclick="bulkSet(FWC_CODES,true)">✓ Fill all</button><button class="f-btn" style="border-color:#ef444440;color:#ff6666" onclick="bulkSet(FWC_CODES,false)">✕ Clear</button></div>
       <div class="sticker-grid">${FWC_CODES.map(c=>{
         const cnt=getEffective(c);const has=cnt>0;
         return`<div class="sticker" style="background:${has?"#D4AF3720":"#0e0e1a"};border-color:${has?"#D4AF3755":"#1e1e30"}">
@@ -599,6 +637,7 @@ function render(){
         <button class="s-btn" style="width:32px;height:32px;border:1px solid #ffffff18;color:#fff" onclick="navigateAway('backFromGroup')">←</button>
         <span style="font-size:26px">🥤</span><div><div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700">Coca-Cola</div><div style="color:#999;font-size:11px">12 exclusive bottle stickers</div></div>
       </div>
+      <div class="filter-row"><button class="f-btn" style="border-color:#22c55e40;color:var(--green)" onclick="bulkSet(COLA_CODES,true)">✓ Fill all</button><button class="f-btn" style="border-color:#ef444440;color:#ff6666" onclick="bulkSet(COLA_CODES,false)">✕ Clear</button></div>
       <div class="sticker-grid" style="grid-template-columns:repeat(3,1fr)">${COLA_CODES.map(c=>{
         const cnt=getEffective(c);const has=cnt>0;
         return`<div class="sticker" style="background:${has?"#E61D2B20":"#0e0e1a"};border-color:${has?"#E61D2B55":"#1e1e30"}">
@@ -647,6 +686,7 @@ function render(){
   else if(state.page==="album"&&state.selTeam){
     const tc=state.selTeam;const t=TEAMS[tc];
     if(t){
+      const ts=getTeamStats(tc);
       const codes=[];for(let i=1;i<=20;i++)codes.push(tc+i);
       const pendingCount=Object.values(state.pending).reduce((s,v)=>s+Math.abs(v),0);
       const filtered=codes.filter(c=>{
@@ -657,11 +697,15 @@ function render(){
         <button class="s-btn" style="width:32px;height:32px;border:1px solid #ffffff18;color:#fff" onclick="navigateAway('backFromTeam')">←</button>
         <span style="font-size:28px">${t.flag}</span>
         <div><div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700">${t.name}</div>
-        <div style="color:#999;font-size:11px">Group ${groupForTeam(tc)} · ${tc}1–${tc}20</div></div>
+        <div style="color:#999;font-size:11px">Group ${groupForTeam(tc)} · ${ts.owned}/20${ts.owned<20?` · ${20-ts.owned} to go`:" · ✓ complete"}</div></div>
       </div>
       <div class="filter-row">${[["all","All"],["owned","Have"],["missing","Need"],["dupes","Dupes"]].map(([k,l])=>
         `<button class="f-btn${state.filter===k?" on":""}" onclick="state.filter='${k}';render()">${l}</button>`).join("")}
+        <button class="f-btn" style="margin-left:auto;border-color:#22c55e40;color:var(--green)" onclick="bulkTeam('${tc}',true)">✓ Fill all</button>
+        <button class="f-btn" style="border-color:#ef444440;color:#ff6666" onclick="bulkTeam('${tc}',false)">✕ Clear</button>
       </div>
+      <input id="ocr-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="paniniOcrFromFile(this)">
+      <button class="action-btn" style="margin-top:0;margin-bottom:12px" onclick="document.getElementById('ocr-file').click()">📷 Import from photo <span style="opacity:.6;font-size:11px">· beta</span></button>
       <div class="sticker-grid">${filtered.map(c=>{
         const cnt=getEffective(c);const has=cnt>0;
         const pend=state.pending[c]||0;
@@ -751,7 +795,7 @@ function render(){
     }else{
       // SEARCH + AUTOCOMPLETE
       content=`<h2 class="sec">🔍 Search Player</h2>
-        <input class="add-in" id="search-input" placeholder="Type a player name…" style="width:100%;margin-bottom:4px;font-size:16px"
+        <input class="add-in" id="search-input" placeholder="Player or code — e.g. Messi, ARG17" style="width:100%;margin-bottom:4px;font-size:16px"
           oninput="state.searchQ=this.value;state._searchDirty=true;clearTimeout(state._st);state._st=setTimeout(function(){state._searchDirty=false;render()},200)"
           value="${(state.searchQ||"").replace(/"/g,'&quot;')}">`;
 
@@ -879,7 +923,7 @@ function render(){
           <div class="member-row"><div class="avatar" style="width:28px;height:28px;font-size:12px;background:#D4AF3730;color:var(--gold)">${state.profile.name[0].toUpperCase()}</div><span style="flex:1">${esc(state.profile.name)} <span style="color:#555">(you)</span></span><span style="color:var(--teal);font-size:12px">${stats.owned}/${TOTAL}</span></div>
           ${Object.entries(state.members).map(([name,ms])=>`<div class="member-row"><div class="avatar" style="width:28px;height:28px;font-size:12px">${name[0].toUpperCase()}</div><span style="flex:1">${esc(name)}</span><span style="color:var(--muted);font-size:12px">${Object.keys(ms).length}/${TOTAL}</span></div>`).join("")}
         </div></div></div>
-        <button class="action-btn" onclick="var t='Join my Panini WC 2026 room!\\nCode: ${state.profile.room}\\nOpen the tracker and enter this code 👆';if(navigator.share){navigator.share({text:t}).catch(function(){navigator.clipboard.writeText(t).then(function(){flash('Copied!')})})}else{navigator.clipboard.writeText(t).then(function(){flash('Copied!')})}">📤 Invite friends</button>
+        <button class="action-btn" onclick="inviteToRoom()">📤 Share invite link</button>
         <button class="action-btn" style="background:#ff444415;color:#ff6666;border-color:#ff444430" onclick="leaveRoom()">Leave room</button>`;
     }else{
       content=`<h2 class="sec">👥 Room</h2><div class="card">
@@ -945,11 +989,11 @@ function render(){
   // ASSEMBLE
   app.innerHTML=`
     ${state.toast?`<div class="toast">${esc(state.toast)}</div>`:""}
-    <div class="hdr"><div><h1 class="hdr-title">PANINI 2026</h1><div style="font-size:11px"><span style="color:var(--gold)">${esc(state.profile.name)}</span>${state.profile.room?`<span style="color:var(--teal);margin-left:8px">🏠 ${esc(state.profile.room)}</span>`:""}</div></div>
+    <div class="hdr"><div><h1 class="hdr-title">PANINI 2026</h1><div style="font-size:11px"><span style="color:var(--gold)">${esc(state.profile.name)}</span>${state.profile.room?`<span style="color:var(--teal);margin-left:8px">🏠 ${esc(state.profile.room)}</span>`:""}${navigator.onLine?"":`<span style="color:var(--orange);margin-left:8px" title="Changes save on this device and sync when you're back online">⚠ Offline</span>`}</div></div>
     <div style="text-align:right"><div class="hdr-pct">${stats.pct}<span style="font-size:11px;color:var(--muted)">%</span></div><div style="font-size:10px;color:#666">${stats.owned}/${TOTAL}</div></div></div>
     <div class="prog"><div class="prog-fill" style="width:${stats.pct}%"></div></div>
     <div class="add-row"><input class="add-in" id="quick-input" placeholder="MEX5, BRA 14 23…" onkeydown="if(event.key==='Enter')quickAdd(false)"><button class="add-btn" style="padding:10px 12px" onclick="quickAdd(false)">Add</button><button class="add-btn" style="padding:10px 12px;background:#4ECDC4" onclick="quickAdd(true)">📦</button></div>
-    ${state.justAdded.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;padding:2px 16px 6px;align-items:center"><span style="color:var(--teal);font-size:12px">✓</span>${state.justAdded.map(c=>{const tc=teamForCode(c);const t=tc?TEAMS[tc]:null;return`<span style="font-size:11px;font-weight:700;font-family:'Oswald',sans-serif;padding:2px 6px;border-radius:5px;border:1px solid ${t?t.color+"66":"#D4AF3766"};color:${t?t.color:"var(--gold)"}">${c}</span>`}).join("")}</div>`:""}
+    ${state.justAdded.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;padding:2px 16px 6px;align-items:center"><span style="color:var(--teal);font-size:12px">✓</span>${state.justAdded.map(c=>{const tc=teamForCode(c);const t=tc?TEAMS[tc]:null;return`<span style="font-size:11px;font-weight:700;font-family:'Oswald',sans-serif;padding:2px 6px;border-radius:5px;border:1px solid ${t?t.color+"66":"#D4AF3766"};color:${t?t.color:"var(--gold)"}">${c}</span>`}).join("")}${state.lastAddInfo?`<button onclick="undoQuickAdd()" style="margin-left:auto;background:none;border:1px solid #ffffff22;color:var(--muted);font-size:11px;font-weight:700;padding:2px 10px;border-radius:5px">↶ Undo</button>`:""}</div>`:""}
     <div class="nav">${[["feed","🔔","Trades",totalAlerts],["album","📋","Album",0],["search","🔍","Search",0],["room","👥","Room",0],["more","⚙️","More",0]].map(([k,ico,label,badge])=>
       `<button class="nav-btn${state.page===k?" on":""}" onclick="navigateAway('${k}')"><span class="nav-ico">${ico}${badge>0&&k==="feed"?`<span class="nav-badge">${badge>99?"99+":badge}</span>`:""}</span><span>${label}</span></button>`).join("")}</div>
     <div class="body">${content}</div>`;
@@ -959,8 +1003,13 @@ function render(){
 // BOOT
 loadLocal();
 try{if(localStorage.getItem('pn-auth')==='1')state.authed=true}catch{}
+try{const _rm=(new URLSearchParams(location.search).get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(_rm)state.pendingRoom=_rm}catch{}
+window.addEventListener('online',render);window.addEventListener('offline',render);
 state.loading=false;render();
 if(state.profile?.roomKey)listenToRoom();
+// auto-join from an invite link (?room=CODE) when already logged in and not in a room
+if(state.profile&&!state.profile.roomKey&&state.pendingRoom){joinRoom(state.pendingRoom);state.pendingRoom=null}
 </script>
+<script src="ocr.js"></script>
 </body>
 </html>
