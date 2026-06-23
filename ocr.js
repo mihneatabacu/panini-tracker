@@ -265,18 +265,24 @@ function _smartRender() {
       <button class="big-btn" style="margin-top:18px" onclick="_smartClose()">Close</button></div>`;
   } else {
     const items = _smart.items;
+    const newCount = items.filter(m => !(state.stickers[m.code] > 0)).length;
+    const haveCount = items.length - newCount;
     const n = items.filter(m => m.on && !(state.stickers[m.code] > 0)).length;
     const rows = items.length ? items.map((m, i) => {
       const t = m.team ? TEAMS[m.team] : null;
-      const owned = (state.stickers[m.code] || 0) > 0;
-      return `<button onclick="paniniSmartToggle(${i})" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:${m.on ? (t ? t.color + "22" : "#D4AF3722") : "#0e0e1a"};border:none;border-bottom:1px solid var(--border);text-align:left;color:#fff;cursor:pointer">
-        <span style="font-size:18px">${m.on ? "☑" : "☐"}</span><span style="font-size:18px">${t ? t.flag : "🏆"}</span>
-        <div style="flex:1"><div style="font-size:14px">${esc(m.name)}</div>
-        <div style="font-size:11px;color:#888">${m.code}${t ? " · " + t.name : ""}${owned ? " · already have" : ""}${m.ambiguous ? " · ⚠ check team" : ""}</div></div>
+      const owned = (state.stickers[m.code] || 0) > 0; // already in album — greyed, not re-added
+      const icon = owned ? "✅" : (m.on ? "☑" : "☐");
+      const bg = owned ? "#0c0c14" : (m.on ? (t ? t.color + "22" : "#D4AF3722") : "#0e0e1a");
+      const sub = owned ? "already in your album — won't be added"
+        : `${m.code}${t ? " · " + t.name : ""}${m.ambiguous ? " · ⚠ check team" : ""}`;
+      return `<button ${owned ? "" : `onclick="paniniSmartToggle(${i})"`} style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:${bg};border:none;border-bottom:1px solid var(--border);text-align:left;color:#fff;cursor:${owned ? "default" : "pointer"};${owned ? "opacity:.55" : ""}">
+        <span style="font-size:18px">${icon}</span><span style="font-size:18px">${t ? t.flag : "🏆"}</span>
+        <div style="flex:1"><div style="font-size:14px;color:${owned ? "#888" : "#fff"}">${esc(m.name)}</div>
+        <div style="font-size:11px;color:#888">${sub}</div></div>
       </button>`;
     }).join("") : `<p style="color:#888;font-size:13px;padding:24px;text-align:center">No stickers recognized. Try a clearer, straighter photo with less glare.</p>`;
-    body = `<div style="padding:16px 16px 8px"><b style="font-size:17px">📷 Found ${items.length} sticker${items.length !== 1 ? "s" : ""}</b>
-      <p style="color:#888;font-size:12px;margin-top:4px">Tap to deselect any that are wrong, then confirm. We only add — nothing is removed.</p></div>
+    body = `<div style="padding:16px 16px 8px"><b style="font-size:17px">📷 Found ${items.length} — ${newCount} new to add</b>
+      <p style="color:#888;font-size:12px;margin-top:4px">${haveCount ? `${haveCount} already in your album (greyed out, skipped). ` : ""}Tap to deselect any wrong ones, then confirm. We only add — nothing is removed.</p></div>
       <div>${rows}</div>
       <div style="position:sticky;bottom:0;background:var(--card);padding:14px 16px;display:flex;gap:8px;border-top:1px solid var(--border)">
         <button class="big-btn" style="margin:0;flex:1;background:var(--card);color:#fff;border:1px solid var(--border)" onclick="_smartClose()">Cancel</button>
