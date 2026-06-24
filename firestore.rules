@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// Panini Tracker — Firestore security rules.
+//
+// Context: the app has NO real authentication. A user's identity is a hash of
+// (name + PIN) used as the member document id; there is no Firebase Auth token.
+// That means we cannot cryptographically bind a write to "the right person" —
+// anyone who knows a room code can read/write that room. These rules therefore
+// do the next best thing for a hobby trading app shared by invite link:
+//   1. Deny everything by default (locks the project to the one known path).
+//   2. Allow the members read/write the app actually needs.
+//   3. VALIDATE the shape & size of writes so a random scraper can't dump junk
+//      or balloon your storage, even though it can't stop a determined griefer.
+//
+// To make this genuinely secure later, add Firebase Anonymous Auth in the client
+// and switch the writes below to `request.auth != null && request.auth.uid == uid`.
+// (See the commented "HARDENED" block at the bottom.)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default: nothing is accessible unless a more specific rule below allows it.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Trading rooms: rooms/{room}/members/{uid}
+    match /rooms/{room}/members/{uid} {
+
+      // Members must see each other's collections for the trade feed to work.
+      allow read: if true;
+
+      // Creating/updating your collection — validate structure and size.
+      allow create, update: if isValidMember();
+
+      // leaveRoom() deletes the member's own document. No body to validate.
+      allow delete: if true;
+    }
+
+    function isValidMember() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'stickers', 'updatedAt'])
+        && d.name is string
+        && d.name.size() >= 1 && d.name.size() <= 40
+        && d.stickers is map
+        && d.stickers.size() <= 1200;   // album is 992; headroom for any future sets
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HARDENED version — use this once the client signs in with Firebase Anonymous
+// Auth and stores the anon uid alongside the profile. Replace the member match
+// above with:
+//
+//   match /rooms/{room}/members/{uid} {
+//     allow read: if request.auth != null;
+//     allow create, update, delete: if request.auth != null
+//        && request.auth.uid == uid
+//        && isValidMember();
+//   }
+//
+// That binds every write to its owner, so no one can edit or delete another
+// member's collection even if they know the room code.
+// ─────────────────────────────────────────────────────────────────────────────
