@@ -586,7 +586,7 @@ function render(){
     // FWC section
     const fs=getFWCStats();const fpct=Math.round((fs.owned/fs.total)*100);
     const cs=getColaStats();const cpct=Math.round((cs.owned/cs.total)*100);
-    content=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec" style="margin:0">📋 Album</h2><label class="f-btn" onclick="if(window._dlog)_dlog('tap: Smart scan')" style="border-color:#4ECDC480;color:var(--teal);padding:6px 14px;display:inline-flex;align-items:center;cursor:pointer">📷 Smart scan<input id="smart-file" type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="paniniSmartScan(this)"></label></div>
+    content=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec" style="margin:0">📋 Album</h2><span style="position:relative;display:inline-flex"><button class="f-btn" style="border-color:#4ECDC480;color:var(--teal);padding:6px 14px;pointer-events:none">📷 Smart scan</button><input id="smart-file" type="file" accept="image/*" capture="environment" onclick="if(window._dlog)_dlog('tap: Smart scan (input)')" onchange="paniniSmartScan(this)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer"></span></div>
       <button class="grp-card" style="width:100%;margin-bottom:8px;border-left-color:var(--gold)" onclick="state.selGroup='FWC';render()">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><span style="font-size:18px">🏆</span> <span style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px">FIFA World Cup</span></div>
@@ -718,7 +718,7 @@ function render(){
         <button class="f-btn" style="margin-left:auto;border-color:#22c55e40;color:var(--green)" onclick="bulkTeam('${tc}',true)">✓ Fill all</button>
         <button class="f-btn" style="border-color:#ef444440;color:#ff6666" onclick="bulkTeam('${tc}',false)">✕ Clear</button>
       </div>
-      <label class="action-btn" onclick="if(window._dlog)_dlog('tap: Import from photo')" style="margin-top:0;margin-bottom:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">📷 Import from photo <span style="opacity:.6;font-size:11px">· beta</span><input id="ocr-file" type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="paniniOcrFromFile(this)"></label>
+      <span style="position:relative;display:block;margin-top:0;margin-bottom:12px"><button class="action-btn" style="margin:0;width:100%;pointer-events:none">📷 Import from photo <span style="opacity:.6;font-size:11px">· beta</span></button><input id="ocr-file" type="file" accept="image/*" capture="environment" onclick="if(window._dlog)_dlog('tap: Import (input)')" onchange="paniniOcrFromFile(this)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer"></span>
       <div class="sticker-grid">${filtered.map(c=>{
         const cnt=getEffective(c);const has=cnt>0;
         const pend=state.pending[c]||0;
