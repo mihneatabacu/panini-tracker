@@ -571,8 +571,7 @@ function render(){
     // FWC section
     const fs=getFWCStats();const fpct=Math.round((fs.owned/fs.total)*100);
     const cs=getColaStats();const cpct=Math.round((cs.owned/cs.total)*100);
-    content=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec" style="margin:0">📋 Album</h2><button class="f-btn" style="border-color:#4ECDC480;color:var(--teal);padding:6px 14px" onclick="document.getElementById('smart-file').click()">📷 Smart scan</button></div>
-      <input id="smart-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="paniniSmartScan(this)">
+    content=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 class="sec" style="margin:0">📋 Album</h2><label class="f-btn" style="border-color:#4ECDC480;color:var(--teal);padding:6px 14px;display:inline-flex;align-items:center;cursor:pointer">📷 Smart scan<input id="smart-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="paniniSmartScan(this)"></label></div>
       <button class="grp-card" style="width:100%;margin-bottom:8px;border-left-color:var(--gold)" onclick="state.selGroup='FWC';render()">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><span style="font-size:18px">🏆</span> <span style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px">FIFA World Cup</span></div>
@@ -704,8 +703,7 @@ function render(){
         <button class="f-btn" style="margin-left:auto;border-color:#22c55e40;color:var(--green)" onclick="bulkTeam('${tc}',true)">✓ Fill all</button>
         <button class="f-btn" style="border-color:#ef444440;color:#ff6666" onclick="bulkTeam('${tc}',false)">✕ Clear</button>
       </div>
-      <input id="ocr-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="paniniOcrFromFile(this)">
-      <button class="action-btn" style="margin-top:0;margin-bottom:12px" onclick="document.getElementById('ocr-file').click()">📷 Import from photo <span style="opacity:.6;font-size:11px">· beta</span></button>
+      <label class="action-btn" style="margin-top:0;margin-bottom:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">📷 Import from photo <span style="opacity:.6;font-size:11px">· beta</span><input id="ocr-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="paniniOcrFromFile(this)"></label>
       <div class="sticker-grid">${filtered.map(c=>{
         const cnt=getEffective(c);const has=cnt>0;
         const pend=state.pending[c]||0;
