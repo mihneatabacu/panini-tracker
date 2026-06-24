@@ -172,9 +172,11 @@ function _teamCode(name) {
   return null;
 }
 // Map Gemini's [{name, team?, number?}] onto album codes. Exported for testing.
+// Smart scan is the swaps pile, so repeated detections of the same code COUNT
+// (3x Messi -> qty 3) instead of de-duping — the user fixes the count on review.
 function paniniMatchItems(items) {
   _buildIndex();
-  const out = [], seen = new Set();
+  const out = [], byCode = {};
   (items || []).forEach(it => {
     const q = _norm(it.name);
     if (!q) return;
@@ -189,9 +191,10 @@ function paniniMatchItems(items) {
     if (tc) { const byTeam = cands.filter(c => teamForCode(c) === tc); if (byTeam.length) pick = byTeam; }
     if (tc && it.number && pick.includes(tc + it.number)) pick = [tc + it.number];
     const code = pick[0];
-    if (seen.has(code)) return;
-    seen.add(code);
-    out.push({ code, name: getName(code), team: teamForCode(code), ambiguous: pick.length > 1 });
+    if (byCode[code]) { byCode[code].qty++; return; } // dup -> bump count, keep one row
+    const entry = { code, name: getName(code), team: teamForCode(code), ambiguous: pick.length > 1, qty: 1 };
+    byCode[code] = entry;
+    out.push(entry);
   });
   return out;
 }
@@ -238,13 +241,22 @@ async function paniniSmartScan(input) {
 }
 
 function paniniSmartToggle(i) { if (_smart && _smart.items && _smart.items[i]) { _smart.items[i].on = !_smart.items[i].on; _smartRender(); } }
+// Stepper: nudge a row's count. Floor at 1 — exclude via the checkbox, never reduce below one.
+function paniniSmartStep(i, d) {
+  const m = _smart && _smart.items && _smart.items[i];
+  if (!m) return;
+  m.qty = Math.max(1, (m.qty || 1) + d);
+  m.on = true; // adjusting the count means you want it
+  _smartRender();
+}
 function paniniSmartConfirm() {
   if (!_smart || !_smart.items) return;
   let added = 0;
-  _smart.items.forEach(m => { if (m.on && !(state.stickers[m.code] > 0)) { state.stickers[m.code] = 1; added++; } });
+  // Purely additive: INCREMENT by qty (owned stickers bump into a tradeable >1, never skipped).
+  _smart.items.forEach(m => { if (m.on) { const q = m.qty || 1; state.stickers[m.code] = (state.stickers[m.code] || 0) + q; added += q; } });
   _smartClose();
-  if (added) { saveLocal(); saveToFirestore(); flash(`📷 Imported ${added} sticker${added !== 1 ? "s" : ""}`); }
-  else flash("Nothing new selected");
+  if (added) { saveLocal(); saveToFirestore(); flash(`📷 Added ${added} sticker${added !== 1 ? "s" : ""}`); }
+  else flash("Nothing selected");
   render();
 }
 function _smartClose() { _smart = null; const e = document.getElementById("smart-ov"); if (e) e.remove(); }
@@ -265,28 +277,33 @@ function _smartRender() {
       <button class="big-btn" style="margin-top:18px" onclick="_smartClose()">Close</button></div>`;
   } else {
     const items = _smart.items;
-    const newCount = items.filter(m => !(state.stickers[m.code] > 0)).length;
-    const haveCount = items.length - newCount;
-    const n = items.filter(m => m.on && !(state.stickers[m.code] > 0)).length;
+    const total = items.reduce((s, m) => s + (m.on ? (m.qty || 1) : 0), 0); // stickers to add across all rows
     const rows = items.length ? items.map((m, i) => {
       const t = m.team ? TEAMS[m.team] : null;
-      const owned = (state.stickers[m.code] || 0) > 0; // already in album — greyed, not re-added
-      const icon = owned ? "✅" : (m.on ? "☑" : "☐");
-      const bg = owned ? "#0c0c14" : (m.on ? (t ? t.color + "22" : "#D4AF3722") : "#0e0e1a");
-      const sub = owned ? "already in your album — won't be added"
-        : `${m.code}${t ? " · " + t.name : ""}${m.ambiguous ? " · ⚠ check team" : ""}`;
-      return `<button ${owned ? "" : `onclick="paniniSmartToggle(${i})"`} style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;background:${bg};border:none;border-bottom:1px solid var(--border);text-align:left;color:#fff;cursor:${owned ? "default" : "pointer"};${owned ? "opacity:.55" : ""}">
-        <span style="font-size:18px">${icon}</span><span style="font-size:18px">${t ? t.flag : "🏆"}</span>
-        <div style="flex:1"><div style="font-size:14px;color:${owned ? "#888" : "#fff"}">${esc(m.name)}</div>
-        <div style="font-size:11px;color:#888">${sub}</div></div>
-      </button>`;
+      const have = state.stickers[m.code] || 0; // current count — adding bumps it toward a tradeable dupe
+      const qty = m.qty || 1;
+      const icon = m.on ? "☑" : "☐";
+      const bg = m.on ? (t ? t.color + "22" : "#D4AF3722") : "#0e0e1a";
+      const sub = `${m.code}${t ? " · " + t.name : ""}${have ? " · have " + have : ""}${m.ambiguous ? " · ⚠ check team" : ""}`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:${bg};border-bottom:1px solid var(--border);color:#fff">
+        <button onclick="paniniSmartToggle(${i})" style="flex:1;display:flex;align-items:center;gap:10px;padding:2px 0;background:none;border:none;text-align:left;color:#fff;cursor:pointer">
+          <span style="font-size:18px">${icon}</span><span style="font-size:18px">${t ? t.flag : "🏆"}</span>
+          <div style="flex:1"><div style="font-size:14px">${esc(m.name)}</div>
+          <div style="font-size:11px;color:#888">${sub}</div></div>
+        </button>
+        <div style="display:flex;align-items:center;gap:4px;${m.on ? "" : "opacity:.35;pointer-events:none"}">
+          <button onclick="paniniSmartStep(${i},-1)" aria-label="decrease" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:18px;line-height:1;cursor:pointer">−</button>
+          <span style="min-width:18px;text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:16px">${qty}</span>
+          <button onclick="paniniSmartStep(${i},1)" aria-label="increase" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:18px;line-height:1;cursor:pointer">＋</button>
+        </div>
+      </div>`;
     }).join("") : `<p style="color:#888;font-size:13px;padding:24px;text-align:center">No stickers recognized. Try a clearer, straighter photo with less glare.</p>`;
-    body = `<div style="padding:16px 16px 8px"><b style="font-size:17px">📷 Found ${items.length} — ${newCount} new to add</b>
-      <p style="color:#888;font-size:12px;margin-top:4px">${haveCount ? `${haveCount} already in your album (greyed out, skipped). ` : ""}Tap to deselect any wrong ones, then confirm. We only add — nothing is removed.</p></div>
+    body = `<div style="padding:16px 16px 8px"><b style="font-size:17px">📷 Found ${items.length} sticker${items.length !== 1 ? "s" : ""}</b>
+      <p style="color:#888;font-size:12px;margin-top:4px">This is your swaps pile — use − / ＋ to set how many of each you have (duplicates count), deselect any wrong ones, then confirm. We only add — nothing is removed.</p></div>
       <div>${rows}</div>
       <div style="position:sticky;bottom:0;background:var(--card);padding:14px 16px;display:flex;gap:8px;border-top:1px solid var(--border)">
         <button class="big-btn" style="margin:0;flex:1;background:var(--card);color:#fff;border:1px solid var(--border)" onclick="_smartClose()">Cancel</button>
-        <button class="big-btn" style="margin:0;flex:2" onclick="paniniSmartConfirm()">Add ${n} sticker${n !== 1 ? "s" : ""}</button>
+        <button class="big-btn" style="margin:0;flex:2" onclick="paniniSmartConfirm()">Add ${total} sticker${total !== 1 ? "s" : ""}</button>
       </div>`;
   }
   e.innerHTML = `<div style="position:fixed;inset:0;background:#000000cc;z-index:1000;display:flex;align-items:flex-end;justify-content:center" onclick="if(event.target===this)_smartClose()">
